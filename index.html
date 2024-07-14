@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Days Between Dates Calculator</title>
+    <title>Working Days Between Dates Calculator</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -15,51 +15,113 @@
             border-radius: 5px;
             background-color: #f9f9f9;
         }
-        input, button {
+        input[type="file"] {
+            margin-bottom: 20px;
+        }
+        table {
             width: 100%;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-        }
-        button {
-            background-color: #28a745;
-            color: white;
-            border: none;
-        }
-        .result {
+            border-collapse: collapse;
             margin-top: 20px;
-            font-size: 1.2em;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Days Between Dates Calculator</h1>
-    <label for="start-date">Start Date:</label>
-    <input type="date" id="start-date">
-    <label for="end-date">End Date:</label>
-    <input type="date" id="end-date">
-    <button onclick="calculateDays()">Calculate</button>
-    <div class="result" id="result"></div>
+    <h1>Working Days Between Dates Calculator with Excel</h1>
+    <input type="file" id="file-input" accept=".xlsx, .xls">
+    <table id="results-table">
+        <thead>
+            <tr>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Working Days Between</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
 <script>
-    function calculateDays() {
-        const startDate = new Date(document.getElementById('start-date').value);
-        const endDate = new Date(document.getElementById('end-date').value);
-        const resultDiv = document.getElementById('result');
+    document.getElementById('file-input').addEventListener('change', handleFile, false);
 
-        if (isNaN(startDate) || isNaN(endDate)) {
-            resultDiv.textContent = "Please enter both dates.";
-            return;
+    const holidays = [
+        '2022-01-01', '2022-04-09', '2022-04-14', '2022-04-15', '2022-05-01',
+        '2022-06-12', '2022-08-29', '2022-11-01', '2022-11-02', '2022-11-30',
+        '2022-12-08', '2022-12-25', '2022-12-30',
+        '2023-01-01', '2023-04-09', '2023-04-06', '2023-04-07', '2023-05-01',
+        '2023-06-12', '2023-08-28', '2023-11-01', '2023-11-02', '2023-11-30',
+        '2023-12-08', '2023-12-25', '2023-12-30',
+        '2024-01-01', '2024-04-09', '2024-03-28', '2024-03-29', '2024-05-01',
+        '2024-06-12', '2024-08-26', '2024-11-01', '2024-11-02', '2024-11-30',
+        '2024-12-08', '2024-12-25', '2024-12-30'
+    ].map(date => new Date(date).getTime());
+
+    function handleFile(e) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = function(event) {
+            const data = new Uint8Array(event.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+            displayResults(jsonData);
+        };
+
+        reader.readAsArrayBuffer(file);
+    }
+
+    function displayResults(data) {
+        const tbody = document.getElementById('results-table').getElementsByTagName('tbody')[0];
+        tbody.innerHTML = '';
+
+        data.forEach((row, index) => {
+            if (index === 0 || row.length < 2) return; // Skip header or invalid rows
+
+            const startDate = new Date(row[0]);
+            const endDate = new Date(row[1]);
+
+            if (isNaN(startDate) || isNaN(endDate)) return; // Skip invalid dates
+
+            const workingDays = calculateWorkingDays(startDate, endDate);
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${row[0]}</td>
+                <td>${row[1]}</td>
+                <td>${workingDays}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function calculateWorkingDays(startDate, endDate) {
+        let count = 0;
+        const currentDate = new Date(startDate);
+
+        while (currentDate <= endDate) {
+            const day = currentDate.getDay();
+            const time = currentDate.getTime();
+
+            if (day !== 0 && day !== 6 && !holidays.includes(time)) {
+                count++;
+            }
+
+            currentDate.setDate(currentDate.getDate() + 1);
         }
 
-        const timeDifference = endDate - startDate;
-        const daysDifference = timeDifference / (1000 * 3600 * 24);
-
-        resultDiv.textContent = `Number of days between dates: ${daysDifference}`;
+        return count;
     }
 </script>
 
